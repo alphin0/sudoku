@@ -13,7 +13,7 @@ export default function Leaderboard() {
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
-  const isHost = React.useMemo(() => room?.host_id === localPlayer?.id, [room, localPlayer]);
+  const isHost = localPlayer?.is_host;
 
   const handleLeave = async () => {
     const confirmMsg = isHost ? "Close the room and kick everyone out?" : "Are you sure you want to leave the game?";
