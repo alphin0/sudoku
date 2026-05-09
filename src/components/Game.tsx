@@ -282,9 +282,9 @@ export default function Game() {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 px-4 max-w-6xl mx-auto pt-4 lg:pt-8">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-8 px-2 sm:px-4 max-w-6xl mx-auto pt-2 lg:pt-8">
       <div className="lg:col-span-2">
-         <div className="bg-background border-4 border-border rounded-2xl p-6 flex flex-col items-center">
+         <div className="bg-background border-4 border-border rounded-xl sm:rounded-2xl p-2 sm:p-6 flex flex-col items-center">
             {localPlayer?.finish_time && (
                <div className="w-full bg-success/20 border-2 border-success/50 text-success p-4 rounded-xl mb-6 text-center font-bold text-lg">
                   🎉 Puzzle Completed!
