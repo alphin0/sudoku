@@ -153,7 +153,7 @@ export default function Lobby() {
             <label className="block text-foreground text-sm font-bold mb-2">Username</label>
             <input
               type="text"
-              placeholder="e.g. SudokuMaster"
+              placeholder="e.g. Alphin"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               className="w-full px-4 py-3 bg-input border-2 border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent transition-all font-bold"
