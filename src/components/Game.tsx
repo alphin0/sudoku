@@ -297,13 +297,15 @@ export default function Game() {
       </div>
       <div className="lg:col-span-1 flex flex-col gap-8">
          <div className="w-full flex items-center justify-between bg-background border-4 border-border p-4 rounded-2xl font-bold text-foreground">
-            <div className="flex items-center">
-               <Gauge className="w-6 h-6 mr-3 text-primary" />
+            <div className="flex-1 flex items-center justify-start">
+               <Gauge className="w-6 h-6 mr-2 sm:mr-3 text-primary" />
                <span className="text-lg">{difficulty}</span>
             </div>
-            <ThemeToggle />
-            <div className="flex items-center">
-               <Clock className="w-6 h-6 mr-3 text-accent" />
+            <div className="flex-shrink-0 flex justify-center">
+               <ThemeToggle />
+            </div>
+            <div className="flex-1 flex items-center justify-end">
+               <Clock className="w-6 h-6 mr-2 sm:mr-3 text-accent" />
                <span className="tabular-nums tracking-widest text-lg">{formatTime(finalSeconds)}</span>
             </div>
          </div>
