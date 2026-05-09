@@ -93,6 +93,21 @@ export const useGameStore = create<GameState>((set) => ({
     // Clear notes when a value is successfully set
     if (value !== 0) {
       newGrid[row][col].notes = [];
+      
+      // Remove this value from notes in the same row, col, and block if correct
+      if (!isError) {
+        for (let i = 0; i < 9; i++) {
+          newGrid[row][i].notes = newGrid[row][i].notes.filter(n => n !== value);
+          newGrid[i][col].notes = newGrid[i][col].notes.filter(n => n !== value);
+        }
+        const startR = Math.floor(row / 3) * 3;
+        const startC = Math.floor(col / 3) * 3;
+        for (let i = 0; i < 3; i++) {
+          for (let j = 0; j < 3; j++) {
+            newGrid[startR + i][startC + j].notes = newGrid[startR + i][startC + j].notes.filter(n => n !== value);
+          }
+        }
+      }
     }
     
     return { grid: newGrid };

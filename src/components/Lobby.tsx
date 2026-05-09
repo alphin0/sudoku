@@ -134,29 +134,29 @@ export default function Lobby() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh] px-4">
-      <div className="w-full max-w-md p-8 rounded-2xl bg-slate-800/50 backdrop-blur-xl border border-slate-700 shadow-2xl">
+      <div className="w-full max-w-md p-8 rounded-2xl bg-background border-4 border-border shadow-none">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-400 mb-2">
+          <h1 className="text-4xl font-bold text-foreground mb-2">
             Multiplayer Sudoku
           </h1>
-          <p className="text-slate-400 text-sm">Real-time synchronized puzzles</p>
+          <p className="text-muted-foreground text-sm font-bold">Real-time synchronized puzzles</p>
         </div>
 
         {error && (
-          <div className="mb-6 p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-sm text-center font-medium">
+          <div className="mb-6 p-3 bg-destructive/10 border-2 border-destructive/50 rounded-xl text-destructive text-sm text-center font-bold">
             {error}
           </div>
         )}
 
         <div className="space-y-6">
           <div>
-            <label className="block text-slate-300 text-sm font-semibold mb-2">Username</label>
+            <label className="block text-foreground text-sm font-bold mb-2">Username</label>
             <input
               type="text"
               placeholder="e.g. SudokuMaster"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium"
+              className="w-full px-4 py-3 bg-input border-2 border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent transition-all font-bold"
               disabled={isLoading}
             />
           </div>
@@ -165,20 +165,19 @@ export default function Lobby() {
             <button
               onClick={handleCreateRoom}
               disabled={isLoading}
-              className="w-full relative group overflow-hidden rounded-xl px-4 py-4 font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 transition-all shadow-[0_0_20px_rgba(59,130,246,0.3)] disabled:opacity-50 flex items-center justify-center space-x-2"
+              className="w-full rounded-xl px-4 py-4 font-bold text-primary-foreground bg-primary hover:bg-primary/90 transition-all border-4 border-primary disabled:opacity-50 flex items-center justify-center space-x-2 active:scale-95"
             >
-              <div className="absolute inset-0 w-full h-full bg-white/10 group-hover:bg-transparent transition-colors pointer-events-none" />
-              {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
-              <span>Create New Room</span>
+              {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-6 h-6 stroke-[3]" />}
+              <span className="text-lg">Create New Room</span>
             </button>
           </div>
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-700"></div>
+              <div className="w-full border-t-2 border-border"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-3 bg-slate-800 text-slate-400">or join existing</span>
+              <span className="px-3 bg-background text-muted-foreground font-bold">or join existing</span>
             </div>
           </div>
 
@@ -190,15 +189,15 @@ export default function Lobby() {
                 value={roomCode}
                 onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
                 maxLength={4}
-                className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold tracking-widest uppercase text-center"
+                className="w-full px-4 py-3 bg-input border-2 border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent transition-all font-bold tracking-widest uppercase text-center"
                 disabled={isLoading}
               />
               <button
                 type="submit"
                 disabled={isLoading || !roomCode}
-                className="px-6 rounded-xl font-semibold text-white bg-slate-700 hover:bg-slate-600 transition-colors disabled:opacity-50 flex items-center justify-center"
+                className="px-6 rounded-xl font-bold text-foreground bg-input border-2 border-border hover:bg-muted transition-colors disabled:opacity-50 flex items-center justify-center active:scale-95"
               >
-                {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <LogIn className="w-5 h-5" />}
+                {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <LogIn className="w-6 h-6 stroke-[3]" />}
               </button>
             </div>
           </form>

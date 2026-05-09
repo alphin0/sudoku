@@ -2,11 +2,23 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useGameStore } from '@/lib/store';
 import { generateSudoku } from '@/lib/sudoku';
-import { Users, Play, Loader2, Crown, LogOut } from 'lucide-react';
+import { Users, Play, Loader2, Crown, LogOut, Copy, Check } from 'lucide-react';
 
 export default function RoomWaiting() {
   const { room, localPlayer, players, setPlayers, setRoom, reset } = useGameStore();
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard' | 'expert'>('easy');
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    if (!room) return;
+    try {
+      await navigator.clipboard.writeText(room.code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+    }
+  };
 
   const isHost = localPlayer?.is_host;
 
@@ -106,42 +118,49 @@ export default function RoomWaiting() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh] px-4">
-      <div className="w-full max-w-xl p-8 rounded-2xl bg-slate-800/50 backdrop-blur-xl border border-slate-700 shadow-2xl">
+      <div className="w-full max-w-xl p-8 rounded-2xl bg-background border-4 border-border shadow-none">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center px-4 py-1.5 rounded-full bg-slate-900 border border-slate-600 mb-4">
-            <span className="text-slate-400 text-sm mr-2">Room Code:</span>
-            <span className="text-xl font-bold tracking-widest text-white">{room.code}</span>
+          <div className="inline-flex items-center justify-center pl-4 pr-2 py-2 rounded-xl bg-input border-2 border-border mb-4">
+            <span className="text-muted-foreground text-sm font-bold mr-2">Room Code:</span>
+            <span className="text-xl font-bold tracking-widest text-foreground mr-3">{room.code}</span>
+            <button 
+              onClick={handleCopy}
+              className="p-1.5 rounded-lg hover:bg-background transition-colors active:scale-95 text-muted-foreground hover:text-foreground border border-transparent hover:border-border"
+              title="Copy Room Code"
+            >
+              {copied ? <Check className="w-5 h-5 text-success" /> : <Copy className="w-5 h-5" />}
+            </button>
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">Waiting for Players</h1>
-          <p className="text-slate-400 text-sm">Share the room code with your friends</p>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Waiting for Players</h1>
+          <p className="text-muted-foreground text-sm font-bold">Share the room code with your friends</p>
         </div>
 
-        <div className="bg-slate-900/50 rounded-xl border border-slate-700/50 p-4 mb-8">
-          <div className="flex items-center text-slate-300 font-semibold mb-4 px-2">
-            <Users className="w-5 h-5 mr-2 text-blue-400" />
+        <div className="bg-background rounded-xl border-4 border-border p-4 mb-8">
+          <div className="flex items-center text-foreground font-bold mb-4 px-2">
+            <Users className="w-5 h-5 mr-2 text-accent" />
             <span>Players ({players.length}/6)</span>
           </div>
           
-          <div className="space-y-2">
+          <div className="space-y-3">
             {players.map((p) => (
               <div 
                 key={p.id} 
-                className={`flex items-center justify-between p-3 rounded-lg border ${p.id === localPlayer.id ? 'bg-slate-800 border-slate-600' : 'bg-slate-800/50 border-transparent'} transition-colors`}
+                className={`flex items-center justify-between p-3 rounded-xl border-2 ${p.id === localPlayer.id ? 'bg-primary/10 border-primary' : 'bg-input border-border'} transition-colors`}
               >
                 <div className="flex items-center space-x-3">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: p.color }}></div>
-                  <span className="font-medium text-slate-200">{p.username}</span>
+                  <div className="w-4 h-4 rounded-full border-2 border-border" style={{ backgroundColor: p.color }}></div>
+                  <span className="font-bold text-foreground">{p.username}</span>
                   {p.id === localPlayer.id && (
-                    <span className="text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full ml-2">You</span>
+                    <span className="text-xs bg-accent text-accent-foreground px-2 py-0.5 rounded-md ml-2 font-bold">You</span>
                   )}
                 </div>
-                {p.is_host && <Crown className="w-5 h-5 text-yellow-500" />}
+                {p.is_host && <Crown className="w-5 h-5 text-primary" />}
               </div>
             ))}
             
             {players.length < 6 && (
-              <div className="flex items-center p-3 rounded-lg border border-dashed border-slate-700 text-slate-500">
-                <Loader2 className="w-4 h-4 mr-3 animate-spin" />
+              <div className="flex items-center p-3 rounded-xl border-2 border-dashed border-border text-muted-foreground font-bold">
+                <Loader2 className="w-5 h-5 mr-3 animate-spin text-accent" />
                 <span className="text-sm">Waiting for others to join...</span>
               </div>
             )}
@@ -150,12 +169,12 @@ export default function RoomWaiting() {
 
         {isHost ? (
           <div className="space-y-4 w-full">
-            <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700/50">
-              <label className="block text-sm font-medium text-slate-300 mb-2">Select Difficulty</label>
+            <div className="bg-input p-4 rounded-xl border-2 border-border">
+              <label className="block text-sm font-bold text-foreground mb-2">Select Difficulty</label>
               <select
                 value={difficulty}
                 onChange={(e) => setDifficulty(e.target.value as any)}
-                className="w-full bg-slate-800 border-none text-white text-sm rounded-lg focus:ring-blue-500 block p-2.5 outline-none"
+                className="w-full bg-background border-2 border-border text-foreground font-bold text-sm rounded-xl focus:ring-2 focus:ring-accent block p-3 outline-none"
               >
                 <option value="easy">Easy</option>
                 <option value="medium">Medium</option>
@@ -166,23 +185,23 @@ export default function RoomWaiting() {
             <button
               onClick={handleStartGame}
               disabled={players.length < 1} // Can play solo or multiplayer
-              className="w-full group rounded-xl px-4 py-4 font-semibold text-white bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] disabled:opacity-50 flex items-center justify-center space-x-2"
+              className="w-full group rounded-xl px-4 py-4 font-bold text-primary-foreground bg-primary hover:bg-primary/90 transition-all border-4 border-primary disabled:opacity-50 flex items-center justify-center space-x-2 active:scale-95"
             >
-              <Play className="w-5 h-5" />
-              <span>Start Game</span>
+              <Play className="w-6 h-6 fill-primary-foreground" />
+              <span className="text-lg">Start Game</span>
             </button>
           </div>
         ) : (
-          <div className="text-center p-4 rounded-xl bg-slate-900 border border-slate-700 flex items-center justify-center text-slate-300">
-            <Loader2 className="w-5 h-5 mr-3 animate-spin text-blue-400" />
+          <div className="text-center p-4 rounded-xl bg-input border-2 border-border flex items-center justify-center text-foreground font-bold">
+            <Loader2 className="w-5 h-5 mr-3 animate-spin text-accent" />
             Waiting for host to start...
           </div>
         )}
 
-        <div className="mt-8 pt-6 border-t border-slate-700/50">
+        <div className="mt-8 pt-6 border-t-2 border-border">
            <button
              onClick={handleLeave}
-             className="w-full flex items-center justify-center p-3 rounded-lg font-bold transition-all text-slate-400 hover:text-red-400 hover:bg-slate-900 border border-transparent hover:border-red-500/30"
+             className="w-full flex items-center justify-center p-3 rounded-xl font-bold transition-all text-destructive hover:bg-destructive/10 border-2 border-transparent hover:border-destructive active:scale-95"
            >
              <LogOut className="w-5 h-5 mr-2" />
              {isHost ? 'Cancel & Close Room' : 'Leave Room'}

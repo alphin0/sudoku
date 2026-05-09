@@ -1,14 +1,70 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import { useGameStore } from '@/lib/store';
-import { Loader2, PenTool, Undo } from 'lucide-react';
+import { useGameStore, GameGrid } from '@/lib/store';
+import { Loader2, Pencil, Eraser, Undo, Gauge, Clock } from 'lucide-react';
 import SudokuGrid from './SudokuGrid';
 import Leaderboard from './Leaderboard';
+import { ThemeToggle } from './ThemeToggle';
+
+function getConflictingCells(grid: GameGrid, r: number, c: number, n: number): {r: number, c: number}[] {
+   const conflicts = new Map<string, {r: number, c: number}>();
+   const addConflict = (cr: number, cc: number) => conflicts.set(`${cr}-${cc}`, {r: cr, c: cc});
+
+   for (let i = 0; i < 9; i++) {
+      if (grid[r][i].value === n && !grid[r][i].isError) addConflict(r, i);
+      if (grid[i][c].value === n && !grid[i][c].isError) addConflict(i, c);
+   }
+   const startR = Math.floor(r / 3) * 3;
+   const startC = Math.floor(c / 3) * 3;
+   for (let i = 0; i < 3; i++) {
+      for (let j = 0; j < 3; j++) {
+         const br = startR + i;
+         const bc = startC + j;
+         if (grid[br][bc].value === n && !grid[br][bc].isError) addConflict(br, bc);
+      }
+   }
+   return Array.from(conflicts.values());
+}
 
 export default function Game() {
   const { room, localPlayer, initGame, updateCell, setPlayers, grid, solution, inputMode, setInputMode, toggleNote, clearNotes, setNotes, pushHistory, popHistory } = useGameStore();
   const [loading, setLoading] = useState(true);
   const [selectedCell, setSelectedCell] = useState<{ r: number, c: number } | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [conflictCells, setConflictCells] = useState<{r: number, c: number}[]>([]);
+
+  useEffect(() => {
+    if (!room?.start_time || localPlayer?.finish_time) return;
+    const st = new Date(room.start_time).getTime();
+    const update = () => {
+       setElapsedSeconds(Math.floor((Date.now() - st) / 1000));
+    };
+    update();
+    const int = setInterval(update, 1000);
+    return () => clearInterval(int);
+  }, [room?.start_time, localPlayer?.finish_time]);
+
+  let fixedCount = 0;
+  if (grid) {
+     grid.forEach(row => row.forEach(cell => { if (cell.isFixed) fixedCount++; }));
+  }
+  let difficulty = 'Unknown';
+  if (fixedCount > 0) {
+     if (fixedCount >= 38) difficulty = 'Easy';
+     else if (fixedCount >= 30) difficulty = 'Medium';
+     else if (fixedCount >= 24) difficulty = 'Hard';
+     else difficulty = 'Expert';
+  }
+
+  const finalSeconds = localPlayer?.finish_time && room?.start_time
+     ? Math.floor((new Date(localPlayer.finish_time).getTime() - new Date(room.start_time).getTime()) / 1000)
+     : elapsedSeconds;
+
+  const formatTime = (sec: number) => {
+     const m = Math.floor(sec / 60).toString().padStart(2, '0');
+     const s = (sec % 60).toString().padStart(2, '0');
+     return `${m}:${s}`;
+  };
 
   useEffect(() => {
     if (!room || !localPlayer) return;
@@ -144,9 +200,22 @@ export default function Game() {
     const prevCell = grid[r][c];
 
     if (inputMode === 'notes') {
-      pushHistory({ type: 'note', r, c, prevNotes: [...prevCell.notes] });
-      if (value !== 0) toggleNote(r, c, value);
-      else clearNotes(r, c);
+      if (value !== 0) {
+        const isAdding = !prevCell.notes.includes(value);
+        if (isAdding) {
+           const conflicts = getConflictingCells(grid, r, c, value);
+           if (conflicts.length > 0) {
+              setConflictCells([...conflicts, {r, c}]);
+              setTimeout(() => setConflictCells([]), 600);
+              return;
+           }
+        }
+        pushHistory({ type: 'note', r, c, prevNotes: [...prevCell.notes] });
+        toggleNote(r, c, value);
+      } else {
+        pushHistory({ type: 'note', r, c, prevNotes: [...prevCell.notes] });
+        clearNotes(r, c);
+      }
       return;
     }
 
@@ -179,7 +248,8 @@ export default function Game() {
         if (!selectedCell) return;
         const key = e.key;
         if (key >= '1' && key <= '9') {
-           handleInput(parseInt(key, 10));
+           const num = parseInt(key, 10);
+           handleInput(num);
         } else if (key === 'Backspace' || key === 'Delete') {
            handleInput(0);
         } else if (key === 'ArrowUp') {
@@ -212,26 +282,38 @@ export default function Game() {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 px-4 max-w-6xl mx-auto">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 px-4 max-w-6xl mx-auto pt-4 lg:pt-8">
       <div className="lg:col-span-2">
-         <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6 shadow-2xl flex flex-col items-center">
+         <div className="bg-background border-4 border-border rounded-2xl p-6 flex flex-col items-center">
             {localPlayer?.finish_time && (
-               <div className="w-full bg-emerald-500/20 border border-emerald-500/50 text-emerald-400 p-4 rounded-xl mb-6 text-center font-bold text-lg">
+               <div className="w-full bg-success/20 border-2 border-success/50 text-success p-4 rounded-xl mb-6 text-center font-bold text-lg">
                   🎉 Puzzle Completed!
                </div>
             )}
-            <SudokuGrid selectedCell={selectedCell} onSelectCell={handleCellSelect} />
-            <NumberPad onInput={handleInput} onUndo={handleUndo} />
+
+            <SudokuGrid selectedCell={selectedCell} onSelectCell={handleCellSelect} conflictCells={conflictCells} />
+            <NumberPad onInput={handleInput} onUndo={handleUndo} selectedCell={selectedCell} />
          </div>
       </div>
-      <div className="lg:col-span-1">
+      <div className="lg:col-span-1 flex flex-col gap-8">
+         <div className="w-full flex items-center justify-between bg-background border-4 border-border p-4 rounded-2xl font-bold text-foreground">
+            <div className="flex items-center">
+               <Gauge className="w-6 h-6 mr-3 text-primary" />
+               <span className="text-lg">{difficulty}</span>
+            </div>
+            <ThemeToggle />
+            <div className="flex items-center">
+               <Clock className="w-6 h-6 mr-3 text-accent" />
+               <span className="tabular-nums tracking-widest text-lg">{formatTime(finalSeconds)}</span>
+            </div>
+         </div>
          <Leaderboard />
       </div>
     </div>
   );
 }
 
-function NumberPad({ onInput, onUndo }: { onInput: (value: number) => void, onUndo: () => void }) {
+function NumberPad({ onInput, onUndo, selectedCell }: { onInput: (value: number) => void, onUndo: () => void, selectedCell: { r: number, c: number } | null }) {
    const { inputMode, setInputMode, grid } = useGameStore();
    const nums = [1,2,3,4,5,6,7,8,9];
 
@@ -250,18 +332,18 @@ function NumberPad({ onInput, onUndo }: { onInput: (value: number) => void, onUn
 
    return (
       <div className="mt-8 flex flex-col items-center max-w-[300px] w-full gap-4">
-         <div className="flex bg-slate-800 rounded-lg p-1 w-full gap-2">
+         <div className="flex bg-input border-2 border-border rounded-xl p-1 w-full gap-2">
             <button
                onClick={() => setInputMode('normal')}
-               className={`flex-1 flex items-center justify-center py-2 rounded-md transition-colors text-sm font-semibold ${inputMode === 'normal' ? 'text-white bg-blue-600 shadow-sm' : 'text-slate-400 hover:text-white'}`}
+               className={`flex-1 flex items-center justify-center py-2 rounded-lg transition-colors text-sm font-bold ${inputMode === 'normal' ? 'bg-accent text-accent-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
             >
                Normal
             </button>
             <button
                onClick={() => setInputMode('notes')}
-               className={`flex-1 flex items-center justify-center py-2 rounded-md transition-colors text-sm font-semibold ${inputMode === 'notes' ? 'text-white bg-amber-600 shadow-sm' : 'text-slate-400 hover:text-white'}`}
+               className={`flex-1 flex items-center justify-center py-2 rounded-lg transition-colors text-sm font-bold ${inputMode === 'notes' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
             >
-               <PenTool className="w-4 h-4 mr-2" />
+               <Pencil className="w-4 h-4 mr-2" />
                Notes
             </button>
          </div>
@@ -272,7 +354,7 @@ function NumberPad({ onInput, onUndo }: { onInput: (value: number) => void, onUn
                   <button
                      key={n}
                      onClick={() => onInput(n)}
-                     className={`col-span-2 h-12 text-white rounded-xl font-bold transition-all active:scale-95 ${isCompleted ? 'opacity-20 pointer-events-none' : ''} ${inputMode === 'notes' ? 'bg-amber-600/20 hover:bg-amber-600 text-amber-500 border border-amber-600/50' : 'bg-slate-700 hover:bg-blue-600'}`}
+                     className={`col-span-2 h-12 rounded-xl font-bold transition-all active:scale-95 border-2 ${isCompleted ? 'opacity-20 pointer-events-none' : ''} ${inputMode === 'notes' ? 'bg-primary/10 hover:bg-primary/20 text-primary border-primary/30' : 'bg-background hover:bg-muted text-foreground border-border'}`}
                   >
                      {n}
                   </button>
@@ -280,13 +362,13 @@ function NumberPad({ onInput, onUndo }: { onInput: (value: number) => void, onUn
             })}
             <button
                onClick={() => onInput(0)}
-               className="col-span-3 h-12 bg-slate-800 hover:bg-red-500 text-white rounded-xl font-bold transition-colors active:scale-95 border border-slate-600"
+               className="col-span-3 h-12 bg-background hover:bg-destructive hover:text-destructive-foreground hover:border-destructive text-foreground rounded-xl font-bold transition-colors active:scale-95 border-2 border-border flex items-center justify-center"
             >
-               ⌫
+               <Eraser className="w-5 h-5" />
             </button>
             <button
                onClick={onUndo}
-               className="col-span-3 h-12 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold transition-colors active:scale-95 border border-slate-600 flex items-center justify-center"
+               className="col-span-3 h-12 bg-background hover:bg-muted text-foreground rounded-xl font-bold transition-colors active:scale-95 border-2 border-border flex items-center justify-center"
             >
                <Undo className="w-5 h-5" />
             </button>
