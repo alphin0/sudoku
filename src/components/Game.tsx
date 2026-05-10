@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useGameStore, GameGrid } from '@/lib/store';
-import { Loader2, Pencil, Eraser, Undo, Gauge, Clock } from 'lucide-react';
+import { Loader2, Pencil, Eraser, Undo, Gauge, Clock, XCircle } from 'lucide-react';
 import SudokuGrid from './SudokuGrid';
 import Leaderboard from './Leaderboard';
 import { ThemeToggle } from './ThemeToggle';
@@ -27,14 +27,16 @@ function getConflictingCells(grid: GameGrid, r: number, c: number, n: number): {
 }
 
 export default function Game() {
-  const { room, localPlayer, initGame, updateCell, setPlayers, grid, solution, inputMode, setInputMode, toggleNote, clearNotes, setNotes, pushHistory, popHistory } = useGameStore();
+  const { room, localPlayer, players, initGame, updateCell, setPlayers, grid, solution, inputMode, setInputMode, toggleNote, clearNotes, setNotes, pushHistory, popHistory } = useGameStore();
   const [loading, setLoading] = useState(true);
   const [selectedCell, setSelectedCell] = useState<{ r: number, c: number } | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [conflictCells, setConflictCells] = useState<{r: number, c: number}[]>([]);
 
+  const currentPlayer = players.find(p => p.id === localPlayer?.id) || localPlayer;
+
   useEffect(() => {
-    if (!room?.start_time || localPlayer?.finish_time) return;
+    if (!room?.start_time || currentPlayer?.finish_time) return;
     const st = new Date(room.start_time).getTime();
     const update = () => {
        setElapsedSeconds(Math.floor((Date.now() - st) / 1000));
@@ -42,7 +44,7 @@ export default function Game() {
     update();
     const int = setInterval(update, 1000);
     return () => clearInterval(int);
-  }, [room?.start_time, localPlayer?.finish_time]);
+  }, [room?.start_time, currentPlayer?.finish_time]);
 
   let fixedCount = 0;
   if (grid) {
@@ -56,8 +58,8 @@ export default function Game() {
      else difficulty = 'Expert';
   }
 
-  const finalSeconds = localPlayer?.finish_time && room?.start_time
-     ? Math.floor((new Date(localPlayer.finish_time).getTime() - new Date(room.start_time).getTime()) / 1000)
+  const finalSeconds = currentPlayer?.finish_time && room?.start_time
+     ? Math.floor((new Date(currentPlayer.finish_time).getTime() - new Date(room.start_time).getTime()) / 1000)
      : elapsedSeconds;
 
   const formatTime = (sec: number) => {
@@ -156,7 +158,7 @@ export default function Game() {
   }, []);
 
   const checkWinCondition = async (lastR: number, lastC: number, lastVal: number) => {
-      if (!grid || !solution || !room || !localPlayer) return;
+      if (!grid || !solution || !room || !currentPlayer) return;
       let isFull = true;
       for (let r=0; r<9; r++) {
          for(let c=0; c<9; c++) {
@@ -167,26 +169,26 @@ export default function Game() {
          }
          if (!isFull) break;
       }
-      if (isFull && !localPlayer.finish_time) {
+      if (isFull && !currentPlayer.finish_time) {
          const finTime = new Date();
          const stTime = room.start_time ? new Date(room.start_time).getTime() : finTime.getTime();
          const timeTakenMs = finTime.getTime() - stTime;
-         await supabase.from('players').update({ finish_time: finTime.toISOString(), time_taken: timeTakenMs }).eq('id', localPlayer.id);
+         await supabase.from('players').update({ finish_time: finTime.toISOString(), time_taken: timeTakenMs }).eq('id', currentPlayer.id);
       }
   };
 
   const syncValueToDB = async (r: number, c: number, value: number, isError: boolean) => {
-    updateCell(r, c, value, localPlayer?.id, isError);
-    if (!room || !localPlayer) return;
+    updateCell(r, c, value, currentPlayer?.id, isError);
+    if (!room || !currentPlayer) return;
     try {
       const { data: existing } = await supabase.from('grid_state').select('id').eq('room_id', room.id).eq('row_idx', r).eq('col_idx', c).maybeSingle();
       if (value === 0) {
          if (existing) await supabase.from('grid_state').delete().eq('id', existing.id);
       } else {
-         if (existing) await supabase.from('grid_state').update({ value, player_id: localPlayer.id, updated_at: new Date().toISOString() }).eq('id', existing.id);
-         else await supabase.from('grid_state').insert([{ room_id: room.id, row_idx: r, col_idx: c, value, player_id: localPlayer.id }]);
+         if (existing) await supabase.from('grid_state').update({ value, player_id: currentPlayer.id, updated_at: new Date().toISOString() }).eq('id', existing.id);
+         else await supabase.from('grid_state').insert([{ room_id: room.id, row_idx: r, col_idx: c, value, player_id: currentPlayer.id }]);
       }
-      if (isError) await supabase.rpc('increment_mistakes', { p_id: localPlayer.id });
+      if (isError) await supabase.rpc('increment_mistakes', { p_id: currentPlayer.id });
       else checkWinCondition(r, c, value);
     } catch (e) {
       console.error(e);
@@ -194,7 +196,7 @@ export default function Game() {
   };
 
   const handleInput = async (value: number) => {
-    if (!selectedCell || !grid || !solution || !room || !localPlayer || localPlayer.finish_time) return;
+    if (!selectedCell || !grid || !solution || !room || !currentPlayer || currentPlayer.finish_time) return;
     const { r, c } = selectedCell;
     if (grid[r][c].isFixed) return;
     const prevCell = grid[r][c];
@@ -225,7 +227,7 @@ export default function Game() {
   };
 
   const handleUndo = () => {
-     if (localPlayer?.finish_time || !solution) return;
+     if (currentPlayer?.finish_time || !solution) return;
      const action = popHistory();
      if (!action) return;
 
@@ -285,14 +287,36 @@ export default function Game() {
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-8 px-2 sm:px-4 max-w-6xl mx-auto pt-2 lg:pt-8">
       <div className="lg:col-span-2">
          <div className="bg-background border-4 border-border rounded-xl sm:rounded-2xl p-2 sm:p-6 flex flex-col items-center">
-            {localPlayer?.finish_time && (
-               <div className="w-full bg-success/20 border-2 border-success/50 text-success p-4 rounded-xl mb-6 text-center font-bold text-lg">
-                  🎉 Puzzle Completed!
+            {currentPlayer?.finish_time ? (
+               <div className="w-full h-full min-h-[400px] flex flex-col items-center justify-center p-4 sm:p-8">
+                  <div className="text-6xl mb-6 animate-bounce" style={{ animationIterationCount: 3 }}>🎉</div>
+                  <h2 className="text-3xl font-bold text-foreground mb-2">Puzzle Completed!</h2>
+                  <p className="text-muted-foreground font-bold mb-8">Great job! Here are your stats:</p>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full max-w-md">
+                     <div className="bg-input border-2 border-border p-4 rounded-xl flex flex-col items-center shadow-sm">
+                        <Clock className="w-6 h-6 text-accent mb-2" />
+                        <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider mb-1">Time</span>
+                        <span className="text-xl font-bold text-foreground">{formatTime(finalSeconds)}</span>
+                     </div>
+                     <div className="bg-input border-2 border-border p-4 rounded-xl flex flex-col items-center shadow-sm">
+                        <XCircle className="w-6 h-6 text-destructive mb-2" />
+                        <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider mb-1">Mistakes</span>
+                        <span className="text-xl font-bold text-foreground">{currentPlayer?.mistakes_count || 0}</span>
+                     </div>
+                     <div className="bg-input border-2 border-border p-4 rounded-xl flex flex-col items-center shadow-sm">
+                        <Gauge className="w-6 h-6 text-primary mb-2" />
+                        <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider mb-1">Difficulty</span>
+                        <span className="text-xl font-bold text-foreground">{difficulty}</span>
+                     </div>
+                  </div>
                </div>
+            ) : (
+               <>
+                  <SudokuGrid selectedCell={selectedCell} onSelectCell={handleCellSelect} conflictCells={conflictCells} />
+                  <NumberPad onInput={handleInput} onUndo={handleUndo} selectedCell={selectedCell} />
+               </>
             )}
-
-            <SudokuGrid selectedCell={selectedCell} onSelectCell={handleCellSelect} conflictCells={conflictCells} />
-            <NumberPad onInput={handleInput} onUndo={handleUndo} selectedCell={selectedCell} />
          </div>
       </div>
       <div className="lg:col-span-1 flex flex-col gap-8">
